@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}역사 - {{ document.title }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ document.title }} 편집 역사</h1>
+<ul class="history-list">
+{% for revision in revisions %}
+    <li>
+        <span class="meta">{{ revision.created_at }} · 편집자 #{{ revision.editor_id }} · {{ revision.edit_comment }}</span>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <form method="post" action="{{ url_for('wiki.delete_revision', slug=document.slug, revision_id=revision.id) }}"
+              onsubmit="return confirm('이 리비전을 삭제하시겠습니까?');">
+            <button type="submit" class="btn-danger">삭제</button>
+        </form>
+        {% endif %}
+    </li>
+{% endfor %}
+</ul>
+<a class="btn btn-secondary" href="{{ url_for('wiki.view', slug=document.slug) }}">문서로 돌아가기</a>
+{% endblock %}

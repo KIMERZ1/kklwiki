@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}편집 - {{ slug }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ slug }} 편집</h1>
+<div class="card">
+    <form method="post">
+        {% if document is none %}
+        <div class="field">
+            <label>제목</label>
+            <input type="text" name="title" value="{{ slug }}" required>
+        </div>
+        {% endif %}
+        <div class="field">
+            <label>내용</label>
+            <p class="meta">문서 중간에 <code>/</code>를 입력하면 문서 추천 목록이 뜹니다. 선택하면 <code>/문서명/</code> 형태로 내부 링크가 삽입됩니다.</p>
+            <div class="editor-wrap" id="editor-wrap">
+                <textarea name="content" id="content-input" rows="20">{{ content }}</textarea>
+                <ul class="editor-suggest" id="editor-suggest"></ul>
+            </div>
+        </div>
+        <div class="field">
+            <label>편집 요약 (선택)</label>
+            <input type="text" name="edit_comment" placeholder="무엇을 바꿨나요?">
+        </div>
+        <button type="submit">저장</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const textarea = document.getElementById('content-input');
+    const suggestBox = document.getElementById('editor-suggest');
+    let currentTrigger = null;
+    let debounceTimer = null;
+
+    function findTrigger() {
+        const value = textarea.value;
+        const pos = textarea.selectionStart;
+        let i = pos - 1;
+        while (i >= 0) {
+            const ch = value[i];
+            if (ch === '\n' || ch === ' ') return null;
+            if (ch === '/') return { start: i, query: value.slice(i + 1, pos) };
+            i--;
+        }
+        return null;
+    }
+
+    function hideSuggest() {
+        suggestBox.style.display = 'none';
+        suggestBox.innerHTML = '';
+        currentTrigger = null;
+    }
+
+    const MIRROR_PROPERTIES = [
+        'boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+        'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing', 'textAlign',
+    ];
+
+    function getCaretCoordinates(position) {
+        const computed = window.getComputedStyle(textarea);
+        const mirror = document.createElement('div');
+        mirror.style.position = 'absolute';
+        mirror.style.visibility = 'hidden';
+        mirror.style.whiteSpace = 'pre-wrap';
+        mirror.style.wordWrap = 'break-word';
+        MIRROR_PROPERTIES.forEach((prop) => {
+            mirror.style[prop] = computed[prop];
+        });
+
+        document.body.appendChild(mirror);
+        mirror.textContent = textarea.value.slice(0, position);
+        const span = document.createElement('span');
+        span.textContent = textarea.value.slice(position) || '.';
+        mirror.appendChild(span);
+
+        const coords = {
+            top: span.offsetTop + parseInt(computed.borderTopWidth, 10),
+            left: span.offsetLeft + parseInt(computed.borderLeftWidth, 10),
+            height: span.offsetHeight,
+        };
+        document.body.removeChild(mirror);
+        return coords;
+    }
+
+    function positionSuggestBox() {
+        if (!currentTrigger) return;
+        const coords = getCaretCoordinates(currentTrigger.start + 1);
+        suggestBox.style.top = `${textarea.offsetTop + coords.top + coords.height - textarea.scrollTop}px`;
+        suggestBox.style.left = `${textarea.offsetLeft + coords.left - textarea.scrollLeft}px`;
+    }
+
+    function renderSuggest(items) {
+        if (!items.length) {
+            hideSuggest();
+            return;
+        }
+        suggestBox.innerHTML = '';
+        items.forEach((item) => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = `${item.title} (${item.slug})`;
+            a.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                insertLink(item.slug);
+            });
+            li.appendChild(a);
+            suggestBox.appendChild(li);
+        });
+        positionSuggestBox();
+        suggestBox.style.display = 'block';
+    }
+
+    async function fetchSuggestions(query) {
+        try {
+            const res = await fetch(`/wiki/_suggest?q=${encodeURIComponent(query)}`);
+            if (!res.ok) {
+                hideSuggest();
+                return;
+            }
+            renderSuggest(await res.json());
+        } catch (err) {
+            hideSuggest();
+        }
+    }
+
+    function insertLink(slug) {
+        if (!currentTrigger) return;
+        const value = textarea.value;
+        const before = value.slice(0, currentTrigger.start);
+        const after = value.slice(textarea.selectionStart);
+        const inserted = `/${slug}/`;
+        textarea.value = before + inserted + after;
+        const newPos = before.length + inserted.length;
+        textarea.focus();
+        textarea.setSelectionRange(newPos, newPos);
+        hideSuggest();
+    }
+
+    function onActivity() {
+        const trigger = findTrigger();
+        if (!trigger) {
+            hideSuggest();
+            return;
+        }
+        currentTrigger = trigger;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => fetchSuggestions(trigger.query), 150);
+    }
+
+    textarea.addEventListener('input', onActivity);
+    textarea.addEventListener('click', onActivity);
+    textarea.addEventListener('keyup', (e) => {
+        if (e.key === 'Escape') {
+            hideSuggest();
+            return;
+        }
+        onActivity();
+    });
+    textarea.addEventListener('blur', () => setTimeout(hideSuggest, 150));
+})();
+</script>
+{% endblock %}

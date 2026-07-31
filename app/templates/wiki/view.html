@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ document.title }}</h1>
+<div class="doc-content">{{ content_html|safe }}</div>
+<div class="actions">
+    <a class="btn" href="{{ url_for('wiki.edit', slug=document.slug) }}">편집</a>
+    <a class="btn btn-secondary" href="{{ url_for('wiki.history', slug=document.slug) }}">역사</a>
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <form method="post" action="{{ url_for('wiki.delete', slug=document.slug) }}"
+          onsubmit="return confirm('정말 이 문서를 삭제하시겠습니까?');">
+        <button type="submit" class="btn-danger">문서 삭제</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}꾺문 위키{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('wiki.index') }}">꾺문 위키</a>
+        <div class="search-wrap">
+            <form action="{{ url_for('search.search_page') }}" method="get">
+                <input type="text" name="q" placeholder="검색" value="{{ request.args.get('q', '') }}" autocomplete="off">
+                <button type="submit">검색</button>
+            </form>
+            {% if popular_queries %}
+            <ul class="search-suggest">
+                {% for pq in popular_queries %}
+                <li><a href="{{ url_for('search.search_page', q=pq.query) }}">{{ loop.index }}. {{ pq.query }}</a></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        <div class="spacer"></div>
+        <nav class="nav-links">
+            {% if current_user.is_authenticated %}
+                <span>{{ current_user.username }}님</span>
+                {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('admin.users') }}">회원 관리</a>
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}">로그아웃</a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}">로그인</a>
+                <a href="{{ url_for('auth.register') }}">회원가입</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flash-list">
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <a href="https://github.com/KIMERZ1" target="_blank" rel="noopener noreferrer">GitHub: KIMERZ1</a>
+        <span>·</span>
+        <span>License: MIT</span>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

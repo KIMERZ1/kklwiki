@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}검색: {{ query }}{% endblock %}
+{% block content %}
+<h1 class="page-title">"{{ query }}" 검색 결과</h1>
+<ul class="result-list">
+{% for hit in hits %}
+    <li>
+        <a href="{{ url_for('wiki.view', slug=hit['_source']['slug']) }}">{{ hit['_source']['title'] }}</a>
+    </li>
+{% endfor %}
+</ul>
+
+{% if not hits %}
+<p class="meta">
+    검색 결과가 없습니다.
+    <a href="{{ url_for('wiki.new', slug=new_slug) }}">'{{ query }}' 문서를 새로 작성하시겠어요?</a>
+</p>
+{% endif %}
+{% endblock %}
